@@ -47,7 +47,7 @@ function submitConfig() {
     <form @submit.prevent="submitConfig" class="space-y-2">
       <Subtitle>General</Subtitle>
       <div>
-        <Button @click="openDirectoryPicker">Directory</Button>
+        <Button type="button" @click="openDirectoryPicker">Directory</Button>
         <p>{{ folder }}</p>
       </div>
       <Subtitle>Structure</Subtitle>
