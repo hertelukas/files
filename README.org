@@ -1,0 +1,56 @@
+#+title: Files
+
+This project is WIP, and does not work yet.
+
+* Configuration
+** ~folder~
+~folder~ has to be a path to an empty folder, where all files and metadata will be stored.
+** ~saveDate~
+Same as a category ~date~, with categories for each day. Nevertheless, allows special treatment,
+as range searches are possible. A file can only have one date associated with it.
+** ~categories~
+A ~category~ consists of multiple options, which are mutual exclusive. A file can have at most one value for each
+category, or none.
+** ~tags~
+~tags~ are freely definable text values, and each file can have any number of tags.
+** ~saveStructure~
+The save structure defines how the files will be stored on disk. It is a list of categories,
+including ~date~, if ~saveDate~ is ~true~. For example, ~date,
+** Example ~.config~ file
+#+begin_src json
+{
+  "folder": "/home/user/Documents/Files",
+  "saveDate": true,
+  "categories": [
+    {
+      "category": "person",
+      "values": [
+        "Olivia",
+        "Liam",
+        "Emma"
+      ]
+    },
+    {
+      "category": "processed",
+      "values": [
+        "true",
+        "false"
+      ]
+    },
+    {
+      "category": "format",
+      "values": [
+        "letter",
+        "mail",
+        "other"
+      ]
+    }
+  ]
+  "tags": [
+    "taxes",
+    "work",
+    "university",
+    "job application"
+  ]
+}
+#+end_src
