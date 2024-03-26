@@ -17,15 +17,27 @@
         "open": true
       },
       "dialog": {
-        "all": true,
-        "ask": true,
-        "confirm": true,
-        "message": true,
+        "all": false,
+        "ask": false,
+        "confirm": false,
+        "message": false,
         "open": true,
-        "save": true
+        "save": false
       },
       "path": {
         "all": true
+      },
+      "fs": {
+        "all": false,
+        "readFile": false,
+        "writeFile": false,
+        "readDir": true,
+        "copyFile": false,
+        "createDir": false,
+        "removeDir": false,
+        "removeFile": false,
+        "renameFile": false,
+        "exists": false
       }
     },
     "windows": [
