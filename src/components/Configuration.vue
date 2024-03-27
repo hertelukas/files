@@ -2,7 +2,7 @@
 import Title from "./Title.vue";
 import Subtitle from "./Subtitle.vue";
 import Button from "./Button.vue";
-import { reactive, ref } from "vue";
+import { reactive, ref, computed } from "vue";
 import { open } from "@tauri-apps/api/dialog";
 import { documentDir } from "@tauri-apps/api/path";
 import { readDir } from "@tauri-apps/api/fs";
@@ -11,6 +11,9 @@ import { invoke } from "@tauri-apps/api/tauri";
 const emit = defineEmits(["changeWindow"]);
 
 const newTag = ref("");
+// newVals[i] is the input field of category i
+const newVals = ref([]);
+const newCategory = ref("");
 const config = reactive({
   cfg: {
     folder: "Loading...",
@@ -41,6 +44,14 @@ async function openDirectoryPicker() {
   }
 }
 
+const categories = computed(() => {
+  const res = [];
+  config.cfg.categories.forEach((cat) => {
+    res.push(cat.name);
+  });
+  return res;
+});
+
 function addTag() {
   if (newTag.value.trim() === "") {
     return;
@@ -52,10 +63,34 @@ function addTag() {
   newTag.value = "";
 }
 
+function addValue(i) {
+  const valToAdd = newVals.value[i].trim();
+  if (valToAdd === "") {
+    return;
+  }
+  if (config.cfg.categories[i].values.includes(valToAdd)) {
+    return;
+  }
+  config.cfg.categories[i].values.push(valToAdd);
+  newVals.value[i] = "";
+}
+
+function addCategory() {
+  const catToAdd = newCategory.value.trim();
+  if (catToAdd === "") {
+    return;
+  }
+  if (categories.value.includes(catToAdd)) {
+    return;
+  }
+  config.cfg.categories.push({ name: catToAdd, values: [] });
+  newCategory.value = "";
+}
+
 async function submitConfig() {
   invoke("store_config", { config: config.cfg })
     .then(() => emit("changeWindow", "main"))
-   // TODO handle error
+    // TODO handle error
     .catch((err) => console.error(err));
 }
 
@@ -88,19 +123,51 @@ invoke("load_config")
         </label>
       </div>
 
-      <div class="space-y-2">
+      <div class="space-y-4">
         <Subtitle>Categories</Subtitle>
         <div
-          v-for="(category, index) in config.cfg.categories || {}"
+          v-for="(category, i) in config.cfg.categories"
           :key="index"
-          class="flex items-center space-x-2"
+          class="space-y-2"
         >
           <input
-            v-model="config.cfg.categories[index].name"
+            v-model="config.cfg.categories[i].name"
             type="text"
             class="border rounded bg-base border-blue p-1"
-            placeholder="Tag"
+            placeholder="Category"
           />
+          <div class="space-y-2">
+            <div
+              v-for="(value, j) in config.cfg.categories[i].values"
+              class="ml-6"
+            >
+              <input
+                :key="index"
+                v-model="config.cfg.categories[i].values[j]"
+                class="border rounded bg-base border-blue p-1"
+              />
+            </div>
+            <input
+              v-model="newVals[i]"
+              type="text"
+              placeholder="New value..."
+              class="border rounded bg-base border-blue p-1 ml-6"
+            />
+          </div>
+          <Button @click="addValue(i)" type="button" class="ml-6"
+            >Add Value</Button
+          >
+        </div>
+        <div class="space-y-2">
+          <div>
+            <input
+              v-model="newCategory"
+              type="text"
+              class="border rounded bg-base border-blue p-1"
+              placeholder="New category..."
+            />
+          </div>
+          <Button @click="addCategory" type="button">Add Category</Button>
         </div>
       </div>
 
@@ -108,7 +175,7 @@ invoke("load_config")
         <Subtitle>Tags</Subtitle>
         <div class="grid grid-cols-6 gap-4">
           <input
-            v-for="(tag, index) in config.cfg.tags || {}"
+            v-for="(tag, index) in config.cfg.tags"
             :key="index"
             v-model="config.cfg.tags[index]"
             type="text"
