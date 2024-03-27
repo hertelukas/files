@@ -2,15 +2,22 @@
 import Title from "./Title.vue";
 import Subtitle from "./Subtitle.vue";
 import Button from "./Button.vue";
-import { ref } from "vue";
+import { reactive, ref } from "vue";
 import { open } from "@tauri-apps/api/dialog";
 import { documentDir } from "@tauri-apps/api/path";
 import { readDir } from "@tauri-apps/api/fs";
+import { invoke } from "@tauri-apps/api/tauri";
 
-const emit = defineEmits(["changeWindow"])
+const emit = defineEmits(["changeWindow"]);
 
-const folder = ref("No folder selected");
-const canConfirm = ref(false);
+const newTag = ref("");
+const config = reactive({
+  cfg: {
+    folder: "Loading...",
+    categories: [],
+    tags: [],
+  },
+});
 
 async function openDirectoryPicker() {
   const selected = await open({
@@ -23,53 +30,95 @@ async function openDirectoryPicker() {
       const files = await readDir(selected);
       // Folder has to be empty
       if (files.length === 0) {
-        folder.value = selected;
-        canConfirm.value = true;
+        config.cfg.folder = selected;
       } else {
-        folder.value = `${selected} is not empty`;
-        canConfirm.value = false;
+        config.cfg.folder = null;
       }
     } catch {
-      folder.value = "Cannot open folder";
-      canConfirm.value = false;
+      config.cfg.folder = null;
     }
   }
 }
-function submitConfig() {
-   // TODO this needs to be send to the backend, and then switched to main
-   emit("changeWindow", "main")
+
+function addTag() {
+  if (newTag.value.trim() === "") {
+    return;
+  }
+  if (config.cfg.tags.includes(newTag.value.trim())) {
+    return;
+  }
+  config.cfg.tags.push(newTag.value.trim());
+  newTag.value = "";
 }
+
+function submitConfig() {
+  // TODO this needs to be send to the backend, and then switched to main
+  emit("changeWindow", "main");
+}
+
+// Load the config from the backend
+invoke("load_config")
+  .then((cfg) => {
+    config.cfg = cfg;
+  })
+  .catch((err) => console.error(err));
 </script>
 
 <template>
   <div class="space-y-10">
     <Title>Configuration</Title>
-    <form @submit.prevent="submitConfig" class="space-y-2">
-      <Subtitle>General</Subtitle>
-      <div>
-        <Button type="button" @click="openDirectoryPicker">Directory</Button>
-        <p>{{ folder }}</p>
-      </div>
-      <Subtitle>Structure</Subtitle>
-      <div>
-        <label class="flex items-center space-x-2">
-          <input type="checkbox" class="accent-blue" />
-          <span>Checkbox 1</span>
-        </label>
+    <form @submit.prevent="submitConfig" class="space-y-6">
 
-        <!-- Checkbox with text -->
+      <div class="space-y-2">
+        <Subtitle>General</Subtitle>
+        <div>
+          <Button type="button" @click="openDirectoryPicker">Directory</Button>
+          <p>{{ config.cfg.folder || "No folder selected" }}</p>
+        </div>
         <label class="flex items-center space-x-2">
           <input type="checkbox" class="accent-blue" />
-          <span>Checkbox 2</span>
-        </label>
-
-        <!-- Checkbox with text -->
-        <label class="flex items-center space-x-2">
-          <input type="checkbox" class="accent-blue" />
-          <span>Checkbox 3</span>
+          <span>Track Date</span>
         </label>
       </div>
-      <Button :disabled="!canConfirm" type="submit"> Confirm </Button>
+
+      <div class="space-y-2">
+        <Subtitle>Categories</Subtitle>
+        <div
+          v-for="(category, index) in config.cfg.categories || {}"
+          :key="index"
+          class="flex items-center space-x-2"
+        >
+          <input
+            v-model="config.cfg.categories[index].name"
+            type="text"
+            class="border rounded bg-base border-blue p-1"
+            placeholder="Tag"
+          />
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <Subtitle>Tags</Subtitle>
+        <div class="grid grid-cols-6 gap-4">
+          <input
+            v-for="(tag, index) in config.cfg.tags || {}"
+            :key="index"
+            v-model="config.cfg.tags[index]"
+            type="text"
+            class="border rounded bg-base border-blue p-1"
+            placeholder="Loading..."
+          />
+          <input
+            v-model="newTag"
+            type="text"
+            placeholder="New tag..."
+            class="border rounded bg-base border-blue p-1"
+          />
+        </div>
+        <Button @click="addTag" type="button">Add Tag</Button>
+      </div>
+
+      <Button :disabled="!config.cfg.folder" type="submit"> Confirm </Button>
     </form>
   </div>
 </template>
