@@ -14,6 +14,7 @@ const newTag = ref("");
 const config = reactive({
   cfg: {
     folder: "Loading...",
+    save_date: true,
     categories: [],
     tags: [],
   },
@@ -51,9 +52,11 @@ function addTag() {
   newTag.value = "";
 }
 
-function submitConfig() {
-  // TODO this needs to be send to the backend, and then switched to main
-  emit("changeWindow", "main");
+async function submitConfig() {
+  invoke("store_config", { config: config.cfg })
+    .then(() => emit("changeWindow", "main"))
+   // TODO handle error
+    .catch((err) => console.error(err));
 }
 
 // Load the config from the backend
@@ -61,6 +64,7 @@ invoke("load_config")
   .then((cfg) => {
     config.cfg = cfg;
   })
+  // TODO handle this case, as this is the default when no config exists
   .catch((err) => console.error(err));
 </script>
 
@@ -68,7 +72,6 @@ invoke("load_config")
   <div class="space-y-10">
     <Title>Configuration</Title>
     <form @submit.prevent="submitConfig" class="space-y-6">
-
       <div class="space-y-2">
         <Subtitle>General</Subtitle>
         <div>
@@ -76,7 +79,11 @@ invoke("load_config")
           <p>{{ config.cfg.folder || "No folder selected" }}</p>
         </div>
         <label class="flex items-center space-x-2">
-          <input type="checkbox" class="accent-blue" />
+          <input
+            type="checkbox"
+            class="accent-blue"
+            v-model="config.cfg.save_date"
+          />
           <span>Track Date</span>
         </label>
       </div>

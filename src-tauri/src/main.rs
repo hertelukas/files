@@ -1,10 +1,6 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use dirs;
-use std::fs;
-use serde_json;
-
 mod config;
 use config::Config;
 
@@ -16,31 +12,20 @@ fn greet(name: &str) -> String {
 
 #[tauri::command]
 fn load_config() -> Result<Config, String> {
-    if let Some(config_dir) = dirs::config_dir() {
+    Config::load()
+}
 
-        let config_file_path = config_dir.join("files").join("config.json");
-
-        let config = match fs::read_to_string(config_file_path) {
-            Ok(content) => content,
-            Err(error) => return Err(error.to_string()),
-        };
-
-        let config: Config = match serde_json::from_str(&config) {
-            Ok(content) => content,
-            Err(_error) => return Err("failed".to_string()),
-        };
-
-        Ok(config)
-    }
-    else {
-        Err("Config directory not found.".to_string())
+#[tauri::command]
+fn store_config(config: Config) -> Result<(), String> {
+    match config.store() {
+        Ok(_) => Ok(()),
+        Err(_err) => Err("Storing failed.".to_string()),
     }
 }
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![greet, load_config])
+        .invoke_handler(tauri::generate_handler![greet, load_config, store_config])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
