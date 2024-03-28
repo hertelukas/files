@@ -127,7 +127,7 @@ invoke("load_config")
         <Subtitle>Categories</Subtitle>
         <div
           v-for="(category, i) in config.cfg.categories"
-          :key="index"
+          :key="i"
           class="space-y-2"
         >
           <input
@@ -142,7 +142,7 @@ invoke("load_config")
               class="ml-6"
             >
               <input
-                :key="index"
+                :key="i * j"
                 v-model="config.cfg.categories[i].values[j]"
                 class="border rounded bg-base border-blue p-1"
               />
