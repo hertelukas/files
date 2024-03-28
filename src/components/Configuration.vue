@@ -45,6 +45,47 @@ async function openDirectoryPicker() {
   }
 }
 
+const validNewTag = computed(() => {
+  if (newTag.value.trim() === "") {
+    return false;
+  }
+  if (config.cfg.tags.includes(newTag.value.trim())) {
+    return false;
+  }
+  return true;
+});
+
+const validNewCategory = computed(() => {
+  const catToAdd = newCategory.value.trim();
+  if (catToAdd === "") {
+    return false;
+  }
+  if (categories.value.includes(catToAdd)) {
+    return false;
+  }
+  return true;
+});
+
+// Array of bools, where validNewVal[i] indicates whether new value of category i is valid
+const validNewVals = computed(() => {
+  const results = [];
+  for (let i = 0; i < config.cfg.categories.length; i++) {
+    if (!newVals.value[i]) {
+      results[i] = false;
+      continue;
+    }
+    const valToAdd = newVals.value[i].trim();
+    if (valToAdd === "") {
+      results[i] = false;
+    } else if (config.cfg.categories[i].values.includes(valToAdd)) {
+      results[i] = false;
+    } else {
+      results[i] = true;
+    }
+  }
+  return results;
+});
+
 const categories = computed(() => {
   const res = [];
   config.cfg.categories.forEach((cat) => {
@@ -54,10 +95,7 @@ const categories = computed(() => {
 });
 
 function addTag() {
-  if (newTag.value.trim() === "") {
-    return;
-  }
-  if (config.cfg.tags.includes(newTag.value.trim())) {
+  if (!validNewTag.value) {
     return;
   }
   config.cfg.tags.push(newTag.value.trim());
@@ -65,25 +103,19 @@ function addTag() {
 }
 
 function addValue(i) {
+  if (!validNewVals.value[i]) {
+    return;
+  }
   const valToAdd = newVals.value[i].trim();
-  if (valToAdd === "") {
-    return;
-  }
-  if (config.cfg.categories[i].values.includes(valToAdd)) {
-    return;
-  }
   config.cfg.categories[i].values.push(valToAdd);
   newVals.value[i] = "";
 }
 
 function addCategory() {
+  if (!validNewCategory.value) {
+    return;
+  }
   const catToAdd = newCategory.value.trim();
-  if (catToAdd === "") {
-    return;
-  }
-  if (categories.value.includes(catToAdd)) {
-    return;
-  }
   config.cfg.categories.push({ name: catToAdd, values: [] });
   newCategory.value = "";
 }
@@ -105,7 +137,7 @@ invoke("load_config")
 </script>
 
 <template>
-  <div class="space-y-10">
+  <div class="space-y-6 p-6">
     <Title>Configuration</Title>
     <form @submit.prevent="submitConfig" class="space-y-6">
       <div class="space-y-2">
@@ -151,18 +183,24 @@ invoke("load_config")
               class="ml-8"
             />
           </div>
-          <Button @click="addValue(i)" type="button" class="ml-8"
+          <Button
+            :disabled="!validNewVals[i]"
+            @click="addValue(i)"
+            type="button"
+            class="ml-8"
             >Add Value</Button
           >
         </div>
         <div class="space-y-2">
           <div>
-            <TextInput
-              v-model="newCategory"
-              placeholder="New category..."
-            />
+            <TextInput v-model="newCategory" placeholder="New category..." />
           </div>
-          <Button @click="addCategory" type="button">Add Category</Button>
+          <Button
+            :disabled="!validNewCategory"
+            @click="addCategory"
+            type="button"
+            >Add Category</Button
+          >
         </div>
       </div>
 
@@ -175,12 +213,11 @@ invoke("load_config")
             v-model="config.cfg.tags[index]"
             placeholder="Loading..."
           />
-          <TextInput
-            v-model="newTag"
-            placeholder="New tag..."
-          />
+          <TextInput v-model="newTag" placeholder="New tag..." />
         </div>
-        <Button @click="addTag" type="button">Add Tag</Button>
+        <Button :disabled="!validNewTag" @click="addTag" type="button"
+          >Add Tag</Button
+        >
       </div>
 
       <Button :disabled="!config.cfg.folder" type="submit"> Confirm </Button>
