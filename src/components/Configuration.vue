@@ -136,15 +136,21 @@ invoke("load_config")
   .catch((err) => console.error(err));
 
 function close() {
-   emit('changeWindow', 'main');
+  emit("changeWindow", "main");
+}
+
+function handleKey(event) {
+  if (event.key === "Escape") {
+    close();
+  }
 }
 
 onMounted(() => {
-  document.addEventListener("keydown", close);
+  document.addEventListener("keydown", handleKey);
 });
 
 onUnmounted(() => {
-  document.removeEventListener("keydown", close);
+  document.removeEventListener("keydown", handleKey);
 });
 </script>
 
