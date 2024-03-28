@@ -2,6 +2,7 @@
 import Title from "./Title.vue";
 import Subtitle from "./Subtitle.vue";
 import Button from "./Button.vue";
+import TextInput from "./TextInput.vue";
 import { reactive, ref, computed } from "vue";
 import { open } from "@tauri-apps/api/dialog";
 import { documentDir } from "@tauri-apps/api/path";
@@ -130,40 +131,34 @@ invoke("load_config")
           :key="i"
           class="space-y-2"
         >
-          <input
+          <TextInput
             v-model="config.cfg.categories[i].name"
-            type="text"
-            class="border rounded bg-base border-blue p-1"
             placeholder="Category"
           />
           <div class="space-y-2">
             <div
               v-for="(value, j) in config.cfg.categories[i].values"
-              class="ml-6"
+              class="ml-8"
             >
-              <input
+              <TextInput
                 :key="i * j"
                 v-model="config.cfg.categories[i].values[j]"
-                class="border rounded bg-base border-blue p-1"
               />
             </div>
-            <input
+            <TextInput
               v-model="newVals[i]"
-              type="text"
               placeholder="New value..."
-              class="border rounded bg-base border-blue p-1 ml-6"
+              class="ml-8"
             />
           </div>
-          <Button @click="addValue(i)" type="button" class="ml-6"
+          <Button @click="addValue(i)" type="button" class="ml-8"
             >Add Value</Button
           >
         </div>
         <div class="space-y-2">
           <div>
-            <input
+            <TextInput
               v-model="newCategory"
-              type="text"
-              class="border rounded bg-base border-blue p-1"
               placeholder="New category..."
             />
           </div>
@@ -174,19 +169,15 @@ invoke("load_config")
       <div class="space-y-2">
         <Subtitle>Tags</Subtitle>
         <div class="grid grid-cols-6 gap-4">
-          <input
+          <TextInput
             v-for="(tag, index) in config.cfg.tags"
             :key="index"
             v-model="config.cfg.tags[index]"
-            type="text"
-            class="border rounded bg-base border-blue p-1"
             placeholder="Loading..."
           />
-          <input
+          <TextInput
             v-model="newTag"
-            type="text"
             placeholder="New tag..."
-            class="border rounded bg-base border-blue p-1"
           />
         </div>
         <Button @click="addTag" type="button">Add Tag</Button>
