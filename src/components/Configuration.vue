@@ -3,7 +3,7 @@ import Title from "./Title.vue";
 import Subtitle from "./Subtitle.vue";
 import Button from "./Button.vue";
 import TextInput from "./TextInput.vue";
-import { reactive, ref, computed } from "vue";
+import { reactive, ref, computed, onMounted, onUnmounted } from "vue";
 import { open } from "@tauri-apps/api/dialog";
 import { documentDir } from "@tauri-apps/api/path";
 import { readDir } from "@tauri-apps/api/fs";
@@ -122,7 +122,7 @@ function addCategory() {
 
 async function submitConfig() {
   invoke("store_config", { config: config.cfg })
-    .then(() => emit("changeWindow", "main"))
+    .then(close)
     // TODO handle error
     .catch((err) => console.error(err));
 }
@@ -134,6 +134,18 @@ invoke("load_config")
   })
   // TODO handle this case, as this is the default when no config exists
   .catch((err) => console.error(err));
+
+function close() {
+   emit('changeWindow', 'main');
+}
+
+onMounted(() => {
+  document.addEventListener("keydown", close);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("keydown", close);
+});
 </script>
 
 <template>
@@ -220,7 +232,10 @@ invoke("load_config")
         >
       </div>
 
-      <Button :disabled="!config.cfg.folder" type="submit"> Confirm </Button>
+      <div class="space-x-4">
+        <Button :disabled="!config.cfg.folder" type="submit"> Confirm </Button>
+        <Button @click="close"> Cancel</Button>
+      </div>
     </form>
   </div>
 </template>
