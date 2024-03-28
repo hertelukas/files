@@ -14,7 +14,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="text-text p-6">
+  <div class="text-text">
     <Configuration
       @changeWindow="(window) => (currentWindow = window)"
       v-if="currentWindow === 'configuration'"

@@ -8,7 +8,7 @@ function click() {
 
 <template>
   <button
-    class="bg-mantle rounded w-32 hover:bg-crust p-1.5 disabled:bg-base"
+    class="bg-blue text-mantle font-sm rounded w-32 hover:bg-pink p-1 disabled:bg-crust disabled:text-text"
     @click="click"
   >
     <slot>Button</slot>
