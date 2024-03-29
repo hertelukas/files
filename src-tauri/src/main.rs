@@ -10,22 +10,42 @@ use std::sync::Mutex;
 use tauri::State;
 
 #[tauri::command]
-fn load_config(state: State<Mutex<Config>>) -> Result<Config, String> {
-    let config = match state.lock() {
+fn load_config(
+    config_state: State<Mutex<Config>>,
+    db_state: State<Mutex<Database>>,
+) -> Result<Config, String> {
+    let config = match config_state.lock() {
         Ok(content) => content,
         Err(_) => return Err("Locking the config mutex failed.".to_string()),
     };
-    Ok(config.clone())
+    let db = match db_state.lock() {
+        Ok(content) => content,
+        Err(_) => return Err("Locking the db mutex failed.".to_string()),
+    };
+    let config = config.clone();
+    db.check_config_consistency(&config)?;
+    Ok(config)
 }
 
 #[tauri::command]
-fn store_config(config: Config, state: State<Mutex<Config>>) -> Result<(), String> {
+fn store_config(
+    config: Config,
+    config_state: State<Mutex<Config>>,
+    db_state: State<Mutex<Database>>,
+) -> Result<(), String> {
     // TODO check that the new config is in a legal state
-    let mut old_onfig = match state.lock() {
+    // Probably by checking if the database update was successful
+    let mut old_onfig = match config_state.lock() {
         Ok(content) => content,
         Err(_) => return Err("Locking the config mutex failed.".to_string()),
     };
     *old_onfig = config;
+
+    let db = match db_state.lock() {
+        Ok(content) => content,
+        Err(_) => return Err("Locking the db mutex failed.".to_string()),
+    };
+    db.check_config_consistency(&old_onfig)?;
     match old_onfig.store() {
         Ok(_) => Ok(()),
         Err(_err) => Err("Storing failed.".to_string()),

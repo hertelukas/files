@@ -16,7 +16,7 @@ pub struct Config {
     folder: String,
     save_date: bool,
     categories: Vec<Category>,
-    tags: Vec<String>,
+    pub tags: Vec<String>,
 }
 
 impl Config {

@@ -1,3 +1,4 @@
+use super::Config;
 use dirs;
 use rusqlite::{params, Connection, Result};
 use std::path::PathBuf;
@@ -26,6 +27,45 @@ impl Database {
         }
     }
 
+    fn tag_consistency(&self, config_tags: &Vec<String>) -> Result<()> {
+        let mut stmt = self
+            .connection
+            .prepare("SELECT tag FROM tags")
+            .expect("Tag select failed");
+        let tag_rows = stmt.query_map([], |row| row.get(0))?;
+
+        let mut tags: Vec<String> = Vec::new();
+        for tag in tag_rows {
+            tags.push(tag.unwrap());
+        }
+
+        // Delete unused tags
+        for tag in &tags {
+            if !config_tags.contains(&tag) {
+                println!("Deleting tag {}", tag);
+                self.connection
+                    .execute("DELETE FROM tags WHERE tag = ?1", params![tag])?;
+            }
+        }
+
+        // Insert new tags
+        for tag in config_tags {
+            if !tags.contains(tag) {
+                println!("Inserting tag {}", tag);
+                self.connection
+                    .execute("INSERT INTO tags(tag) VALUES (?1)", params![tag])?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn check_config_consistency(&self, config: &Config) -> Result<(), String> {
+        let _ = self
+            .tag_consistency(&config.tags)
+            .map_err(|err| format!("Failed to update tags: {err}").to_string());
+        Ok(())
+    }
+
     fn create_tables(&self) -> Result<()> {
         let qry = "
 PRAGMA foreign_keys = ON;
@@ -35,9 +75,9 @@ CREATE TABLE IF NOT EXISTS files (
   path TEXT NOT NULL
 );
 
-CREATE TABLE tags (
+CREATE TABLE IF NOT EXISTS tags (
   id INTEGER PRIMARY KEY,
-  tag TEXT NOT NULL
+  tag TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS fileTags (
