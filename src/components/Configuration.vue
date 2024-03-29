@@ -161,8 +161,8 @@ onUnmounted(() => {
       <div class="space-y-2">
         <Subtitle>General</Subtitle>
         <div>
-          <Button type="button" @click="openDirectoryPicker">Directory</Button>
           <p>{{ config.cfg.folder || "No folder selected" }}</p>
+          <Button type="button" @click="openDirectoryPicker">Directory</Button>
         </div>
         <label class="flex items-center space-x-2">
           <input

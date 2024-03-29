@@ -1,5 +1,5 @@
 <template>
   <h2 class="text-3xl font-semibold">
-    <slot>Subitle</slot>
+    <slot>Subtitle</slot>
   </h2>
 </template>
