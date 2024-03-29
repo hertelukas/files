@@ -1,3 +1,5 @@
+use crate::config::Category;
+
 use super::Config;
 use dirs;
 use rusqlite::{params, Connection, Result};
@@ -5,6 +7,11 @@ use std::path::PathBuf;
 
 struct File {
     path: String,
+}
+
+struct CategoryEntry {
+    id: i32,
+    name: String,
 }
 
 pub struct Database {
@@ -59,10 +66,61 @@ impl Database {
         Ok(())
     }
 
+    fn category_consistency(&self, config_cats: &Vec<Category>) -> Result<()> {
+        let mut stmt = self.connection.prepare("SELECT id, name FROM categories")?;
+        let categories: Vec<CategoryEntry> = stmt
+            .query_map([], |row| {
+                Ok(CategoryEntry {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                })
+            })?
+            .collect::<Result<Vec<CategoryEntry>>>()?;
+
+        let categories = &categories;
+
+        for category in categories {
+            // Delete unused categories
+            if !config_cats.into_iter().any(|c| c.name.eq(&category.name)) {
+                println!("Removing category {}", category.name);
+                self.connection.execute(
+                    "DELETE FROM categories WHERE id = ?1",
+                    params![category.id],
+                )?;
+            }
+            // TODO also delete unused values of a category
+            // and insert new values of a category
+        }
+
+        // Insert new categories
+        for config_category in config_cats {
+            if !categories
+                .into_iter()
+                .by_ref()
+                .any(|c| c.name.eq(&config_category.name))
+            {
+                println!("Inserting category {}", config_category.name);
+                self.connection.execute(
+                    "INSERT INTO categories(name) VALUES (?1)",
+                    params![config_category.name],
+                )?;
+            }
+            // TODO insert values of the new category
+            // all existing ones are already updated
+        }
+
+        Ok(())
+    }
+
     pub fn check_config_consistency(&self, config: &Config) -> Result<(), String> {
         let _ = self
             .tag_consistency(&config.tags)
             .map_err(|err| format!("Failed to update tags: {err}").to_string());
+
+        let _ = self
+            .category_consistency(&config.categories)
+            .map_err(|err| format!("Failed to update categories: {err}").to_string());
+
         Ok(())
     }
 
