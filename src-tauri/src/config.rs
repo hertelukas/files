@@ -5,13 +5,13 @@ use std::io::prelude::*;
 use std::io::BufWriter;
 use std::{fs, path::PathBuf};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Category {
     name: String,
     values: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     folder: String,
     save_date: bool,
