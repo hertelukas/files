@@ -11,7 +11,7 @@ import { invoke } from "@tauri-apps/api/tauri";
 const emit = defineEmits(["close"]);
 
 const tags = [];
-const categories = {};
+const categories = new Map();
 const file = ref("");
 
 async function openFilePicker() {
@@ -47,15 +47,36 @@ const validImport = computed(() => {
   return file.value.length > 0;
 });
 
+function getCleanCategories() {
+  const result = new Map();
+  for (let k of categories.keys()) {
+    if (categories.has(k) && categories.get(k)) {
+      result.set(k, categories.get(k));
+    }
+  }
+  return result;
+}
+
 function toggleCat(category, value) {
-  categories[category] = value;
+  categories.set(category, value);
+}
+
+function submitImport() {
+  invoke("import", {
+    path: file.value,
+    tags: tags,
+    categories: getCleanCategories(),
+  })
+    .then(() => emit("close"))
+    // TODO handle error
+    .catch((err) => console.error(err));
 }
 
 invoke("load_config")
   .then((cfg) => {
     config.cfg = cfg;
     for (const cat of config.cfg.categories) {
-      categories[cat.name] = null;
+      categories.set(cat.name, null);
     }
   })
   // TODO handle
@@ -95,7 +116,7 @@ invoke("load_config")
       </div>
     </div>
     <div class="space-x-3">
-      <Button :disabled="!validImport" @click="">Import</Button>
+      <Button :disabled="!validImport" @click="submitImport">Import</Button>
       <Button @click="() => emit('close')">Close</Button>
     </div>
   </div>

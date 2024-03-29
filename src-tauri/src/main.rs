@@ -2,13 +2,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod config;
-use config::Config;
+use std::collections::HashMap;
 
-// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+use config::Config;
 
 #[tauri::command]
 fn load_config() -> Result<Config, String> {
@@ -23,9 +19,17 @@ fn store_config(config: Config) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+fn import(path: String, tags: Vec<String>, categories: HashMap<String, String>) -> Result<(), String> {
+    println!("Path: {:?}", path);
+    println!("Tags: {:?}", tags);
+    println!("Categories: {:?}", categories);
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![greet, load_config, store_config])
+        .invoke_handler(tauri::generate_handler![load_config, store_config, import])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
