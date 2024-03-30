@@ -77,16 +77,12 @@ impl Database {
             })?
             .collect::<Result<Vec<CategoryEntry>>>()?;
 
-        let categories = &categories;
-
-        for category in categories {
+        for category in categories.iter() {
             // Delete unused categories
             if !config_cats.into_iter().any(|c| c.name.eq(&category.name)) {
                 println!("Removing category {}", category.name);
-                self.connection.execute(
-                    "DELETE FROM categories WHERE id = ?1",
-                    params![category.id],
-                )?;
+                self.connection
+                    .execute("DELETE FROM categories WHERE id = ?1", params![category.id])?;
             }
             // TODO also delete unused values of a category
             // and insert new values of a category
@@ -95,7 +91,7 @@ impl Database {
         // Insert new categories
         for config_category in config_cats {
             if !categories
-                .into_iter()
+                .iter()
                 .by_ref()
                 .any(|c| c.name.eq(&config_category.name))
             {
@@ -104,9 +100,22 @@ impl Database {
                     "INSERT INTO categories(name) VALUES (?1)",
                     params![config_category.name],
                 )?;
+                let id: u32 = self.connection.query_row(
+                    "SELECT id FROM categories WHERE name = ?1",
+                    params![config_category.name],
+                    |r| r.get(0),
+                )?;
+
+                for value in config_category.values.iter() {
+                    println!("Inserting value {}", value);
+                    self.connection
+                        .execute(
+                            "INSERT INTO categoryValue(category_id, value) VALUES (?1, ?2)",
+                            params![id, value],
+                        )
+                        .unwrap();
+                }
             }
-            // TODO insert values of the new category
-            // all existing ones are already updated
         }
 
         Ok(())
