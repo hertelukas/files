@@ -79,22 +79,17 @@ impl Database {
 
         for category in categories.iter() {
             // Delete unused categories
-            if !config_cats.into_iter().any(|c| c.name.eq(&category.name)) {
+            if !config_cats.iter().any(|c| c.name.eq(&category.name)) {
                 println!("Removing category {}", category.name);
                 self.connection
                     .execute("DELETE FROM categories WHERE id = ?1", params![category.id])?;
             }
-            // TODO also delete unused values of a category
-            // and insert new values of a category
         }
 
         // Insert new categories
         for config_category in config_cats {
-            if !categories
-                .iter()
-                .by_ref()
-                .any(|c| c.name.eq(&config_category.name))
-            {
+            println!("Checking category {}", config_category.name);
+            if !categories.iter().any(|c| c.name.eq(&config_category.name)) {
                 println!("Inserting category {}", config_category.name);
                 self.connection.execute(
                     "INSERT INTO categories(name) VALUES (?1)",
@@ -108,12 +103,44 @@ impl Database {
 
                 for value in config_category.values.iter() {
                     println!("Inserting value {}", value);
-                    self.connection
-                        .execute(
+                    self.connection.execute(
+                        "INSERT INTO categoryValue(category_id, value) VALUES (?1, ?2)",
+                        params![id, value],
+                    )?;
+                }
+            } else {
+                // Here we can be sure that the category in the config also exists
+                // in the database. We need to check if the values match
+                let mut stmt = self.connection.prepare("SELECT categoryValue.value FROM categoryValue JOIN categories ON categoryValue.category_id = categories.id WHERE categories.name = ?1")?;
+
+                let values: Vec<String> = stmt
+                    .query_map(params![config_category.name], |row| Ok(row.get(0)?))?
+                    .collect::<Result<Vec<String>>>()?;
+
+                let id: u32 = self.connection.query_row(
+                    "SELECT id FROM categories WHERE name = ?1",
+                    params![config_category.name],
+                    |r| r.get(0),
+                )?;
+
+                // Check if value needs to be deleted
+                for val in values.iter() {
+                    if !config_category.values.iter().any(|c| c.eq(val)) {
+                        println!("Removing value {}", val);
+                        self.connection.execute(
+                            "DELETE FROM categoryValue WHERE value = ?1 and category_id = ?2",
+                            params![val, id],
+                        )?;
+                    }
+                }
+                for config_val in config_category.values.iter() {
+                    if !values.iter().any(|c| c.eq(config_val)) {
+                        println!("Inserting value {}", config_val);
+                        self.connection.execute(
                             "INSERT INTO categoryValue(category_id, value) VALUES (?1, ?2)",
-                            params![id, value],
-                        )
-                        .unwrap();
+                            params![id, config_val],
+                        )?;
+                    }
                 }
             }
         }
@@ -122,13 +149,17 @@ impl Database {
     }
 
     pub fn check_config_consistency(&self, config: &Config) -> Result<(), String> {
-        let _ = self
-            .tag_consistency(&config.tags)
-            .map_err(|err| format!("Failed to update tags: {err}").to_string());
+        let _ = self.tag_consistency(&config.tags).map_err(|err| {
+            println!("Updating tags failed: {err}");
+            format!("Failed to update tags: {err}").to_string()
+        });
 
         let _ = self
             .category_consistency(&config.categories)
-            .map_err(|err| format!("Failed to update categories: {err}").to_string());
+            .map_err(|err| {
+                println!("Updating cateogires failed: {err}");
+                format!("Failed to update categories: {err}").to_string()
+            });
 
         Ok(())
     }
