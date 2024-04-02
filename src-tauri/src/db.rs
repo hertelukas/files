@@ -10,7 +10,7 @@ struct File {
 }
 
 struct CategoryEntry {
-    id: i32,
+    id: u32,
     name: String,
 }
 
@@ -66,23 +66,57 @@ impl Database {
         Ok(())
     }
 
-    fn category_consistency(&self, config_cats: &Vec<Category>) -> Result<()> {
-        let mut stmt = self.connection.prepare("SELECT id, name FROM categories")?;
-        let categories: Vec<CategoryEntry> = stmt
+    fn get_categories(&self) -> Result<Vec<CategoryEntry>> {
+        self.connection
+            .prepare("SELECT id, name FROM categories")?
             .query_map([], |row| {
                 Ok(CategoryEntry {
                     id: row.get(0)?,
                     name: row.get(1)?,
                 })
             })?
-            .collect::<Result<Vec<CategoryEntry>>>()?;
+            .collect::<Result<Vec<CategoryEntry>>>()
+    }
 
+    fn get_category_id(&self, name: &String) -> Result<u32> {
+        self.connection.query_row(
+            "SELECT id FROM categories WHERE name = ?1",
+            params![name],
+            |r| r.get(0),
+        )
+    }
+
+    fn delete_category(&self, id: u32) -> Result<usize> {
+        self.connection
+            .execute("DELETE FROM categories WHERE id = ?1", params![id])
+    }
+
+    fn insert_category(&self, name: &String) -> Result<usize> {
+        self.connection
+            .execute("INSERT INTO categories(name) VALUES (?1)", params![name])
+    }
+
+    fn delete_value(&self, category_id: u32, value: &String) -> Result<usize> {
+        self.connection.execute(
+            "DELETE FROM categoryValue WHERE value = ?1 and category_id = ?2",
+            params![value, category_id],
+        )
+    }
+
+    fn insert_value(&self, category_id: u32, value: &String) -> Result<usize> {
+        self.connection.execute(
+            "INSERT INTO categoryValue(category_id, value) VALUES (?1, ?2)",
+            params![category_id, value],
+        )
+    }
+
+    fn category_consistency(&self, config_cats: &Vec<Category>) -> Result<()> {
+        let categories = self.get_categories()?;
         for category in categories.iter() {
             // Delete unused categories
             if !config_cats.iter().any(|c| c.name.eq(&category.name)) {
                 println!("Removing category {}", category.name);
-                self.connection
-                    .execute("DELETE FROM categories WHERE id = ?1", params![category.id])?;
+                self.delete_category(category.id)?;
             }
         }
 
@@ -91,55 +125,37 @@ impl Database {
             println!("Checking category {}", config_category.name);
             if !categories.iter().any(|c| c.name.eq(&config_category.name)) {
                 println!("Inserting category {}", config_category.name);
-                self.connection.execute(
-                    "INSERT INTO categories(name) VALUES (?1)",
-                    params![config_category.name],
-                )?;
-                let id: u32 = self.connection.query_row(
-                    "SELECT id FROM categories WHERE name = ?1",
-                    params![config_category.name],
-                    |r| r.get(0),
-                )?;
+                self.insert_category(&config_category.name)?;
+
+                let id: u32 = self.get_category_id(&config_category.name)?;
 
                 for value in config_category.values.iter() {
                     println!("Inserting value {}", value);
-                    self.connection.execute(
-                        "INSERT INTO categoryValue(category_id, value) VALUES (?1, ?2)",
-                        params![id, value],
-                    )?;
+                    self.insert_value(id, value)?;
                 }
             } else {
                 // Here we can be sure that the category in the config also exists
                 // in the database. We need to check if the values match
                 let mut stmt = self.connection.prepare("SELECT categoryValue.value FROM categoryValue JOIN categories ON categoryValue.category_id = categories.id WHERE categories.name = ?1")?;
 
+                // These are the values of the current category
                 let values: Vec<String> = stmt
                     .query_map(params![config_category.name], |row| Ok(row.get(0)?))?
                     .collect::<Result<Vec<String>>>()?;
 
-                let id: u32 = self.connection.query_row(
-                    "SELECT id FROM categories WHERE name = ?1",
-                    params![config_category.name],
-                    |r| r.get(0),
-                )?;
+                let id: u32 = self.get_category_id(&config_category.name)?;
 
                 // Check if value needs to be deleted
                 for val in values.iter() {
                     if !config_category.values.iter().any(|c| c.eq(val)) {
                         println!("Removing value {}", val);
-                        self.connection.execute(
-                            "DELETE FROM categoryValue WHERE value = ?1 and category_id = ?2",
-                            params![val, id],
-                        )?;
+                        self.delete_value(id, val)?;
                     }
                 }
                 for config_val in config_category.values.iter() {
                     if !values.iter().any(|c| c.eq(config_val)) {
                         println!("Inserting value {}", config_val);
-                        self.connection.execute(
-                            "INSERT INTO categoryValue(category_id, value) VALUES (?1, ?2)",
-                            params![id, config_val],
-                        )?;
+                        self.insert_value(id, config_val)?;
                     }
                 }
             }
