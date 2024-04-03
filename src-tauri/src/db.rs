@@ -34,33 +34,40 @@ impl Database {
         }
     }
 
-    fn tag_consistency(&self, config_tags: &Vec<String>) -> Result<()> {
-        let mut stmt = self
-            .connection
+    fn get_tags(&self) -> Result<Vec<String>> {
+        self.connection
             .prepare("SELECT tag FROM tags")
-            .expect("Tag select failed");
-        let tag_rows = stmt.query_map([], |row| row.get(0))?;
+            .expect("Tag select failed")
+            .query_map([], |row| row.get(0))?
+            .collect::<Result<Vec<String>>>()
+    }
 
-        let mut tags: Vec<String> = Vec::new();
-        for tag in tag_rows {
-            tags.push(tag.unwrap());
-        }
+    fn delete_tag(&self, tag: &String) -> Result<usize> {
+        self.connection
+            .execute("DELETE FROM tags WHERE tag = ?1", params![tag])
+    }
+
+    fn insert_tag(&self, tag: &String) -> Result<usize> {
+        self.connection
+            .execute("INSERT INTO tags(tag) VALUES (?1)", params![tag])
+    }
+
+    fn tag_consistency(&self, config_tags: &Vec<String>) -> Result<()> {
+        let tags = self.get_tags()?;
 
         // Delete unused tags
-        for tag in &tags {
-            if !config_tags.contains(&tag) {
+        for tag in tags.iter() {
+            if !config_tags.contains(tag) {
                 println!("Deleting tag {}", tag);
-                self.connection
-                    .execute("DELETE FROM tags WHERE tag = ?1", params![tag])?;
+                self.delete_tag(tag)?;
             }
         }
 
         // Insert new tags
-        for tag in config_tags {
+        for tag in config_tags.iter() {
             if !tags.contains(tag) {
                 println!("Inserting tag {}", tag);
-                self.connection
-                    .execute("INSERT INTO tags(tag) VALUES (?1)", params![tag])?;
+                self.insert_tag(tag)?;
             }
         }
         Ok(())
