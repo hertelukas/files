@@ -9,9 +9,16 @@ struct File {
     path: String,
 }
 
+#[derive(Debug)]
 struct CategoryEntry {
     id: u32,
     name: String,
+}
+
+impl PartialEq for CategoryEntry {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && self.name == other.name
+    }
 }
 
 pub struct Database {
@@ -229,5 +236,88 @@ CREATE TABLE IF NOT EXISTS fileValues (
   CONSTRAINT fk_value FOREIGN KEY (value_id) REFERENCES categoryValue(id) ON UPDATE CASCADE ON DELETE CASCADE
 );";
         self.connection.execute_batch(qry)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_db() -> Database {
+        let con = Connection::open_in_memory().expect("Database in memory failed");
+        let db = Database { connection: con };
+        db.create_tables().expect("Database creation failed");
+        db
+    }
+
+    #[test]
+    fn tag_insert() {
+        let db = create_db();
+        assert_eq!(Vec::<String>::new(), db.get_tags().unwrap());
+        db.insert_tag(&"test".to_string())
+            .expect("Failed to insert tag");
+        assert_eq!(vec!["test".to_string()], db.get_tags().unwrap());
+    }
+
+    #[test]
+    #[should_panic(expected = "UNIQUE constraint failed")]
+    fn tag_duplicate_insert() {
+        let db = create_db();
+        db.insert_tag(&"test".to_string())
+            .expect("Failed to insert tag");
+        db.insert_tag(&"test".to_string())
+            .expect("Failed to insert tag");
+    }
+
+    #[test]
+    fn tag_delete() {
+        let db = create_db();
+        db.insert_tag(&"test".to_string())
+            .expect("Failed to insert tag");
+        db.delete_tag(&"test".to_string())
+            .expect("Failed to delete tag");
+        assert_eq!(Vec::<String>::new(), db.get_tags().unwrap());
+    }
+
+    #[test]
+    fn category_insert() {
+        let db = create_db();
+        assert_eq!(Vec::<CategoryEntry>::new(), db.get_categories().unwrap());
+        db.insert_category(&"test".to_string())
+            .expect("Failed to insert category");
+        assert!(
+            db.get_categories()
+                .unwrap()
+                .iter()
+                .any(|c| c.name == "test".to_string()),
+            "Does not contain the correct category"
+        );
+        assert_eq!(
+            db.get_categories().unwrap().len(),
+            1,
+            "Does not contain exactly one category"
+        );
+    }
+
+    #[test]
+    fn category_delete() {
+        let db = create_db();
+        db.insert_category(&"test".to_string())
+            .expect("Failed to insert category");
+        let id = db
+            .get_category_id(&"test".to_string())
+            .expect("Failed to get category id");
+        db.delete_category(id).expect("Failed to delete category");
+        assert_eq!(Vec::<CategoryEntry>::new(), db.get_categories().unwrap());
+    }
+
+    #[test]
+    #[should_panic(expected = "UNIQUE constraint failed")]
+    fn category_duplicate_insert() {
+        let db = create_db();
+        db.insert_category(&"test".to_string())
+            .expect("Failed to insert category");
+        db.insert_category(&"test".to_string())
+            .expect("Failed to insert category");
     }
 }
