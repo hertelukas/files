@@ -36,7 +36,7 @@ impl Config {
 
         let config: Config = match serde_json::from_str(&config) {
             Ok(content) => content,
-            Err(_error) => return Err("failed".to_string()),
+            Err(error) => return Err(error.to_string()),
         };
 
         Ok(config)
@@ -48,5 +48,9 @@ impl Config {
         } else {
             panic!("Config directory not found.")
         }
+    }
+
+    pub fn db_path(&self) -> PathBuf {
+        PathBuf::from(&self.folder).join("files.sqlite")
     }
 }
