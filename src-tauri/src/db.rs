@@ -286,7 +286,7 @@ mod tests {
 
     fn create_db() -> Database {
         let con = Connection::open_in_memory().expect("Database in memory failed");
-        let db = Database { connection: con };
+        let db = Database { connection: Some(con) };
         db.create_tables().expect("Database creation failed");
         db
     }
