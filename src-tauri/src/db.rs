@@ -72,6 +72,16 @@ impl Database {
         }
     }
 
+    fn get_tag_id(&self, tag: &String) -> Result<u32> {
+        if let Some(ref con) = self.connection {
+            con.query_row("SELECT id FROM tags WHERE tag = ?1", params![tag], |r| {
+                r.get(0)
+            })
+        } else {
+            Err(rusqlite::Error::InvalidQuery)
+        }
+    }
+
     fn tag_consistency(&self, config_tags: &Vec<String>) -> Result<()> {
         let tags = self.get_tags()?;
 
@@ -231,6 +241,18 @@ impl Database {
         Ok(())
     }
 
+    fn get_file_id(&self, relative_path: &String) -> Result<u32> {
+        if let Some(ref con) = self.connection {
+            con.query_row(
+                "SELECT id FROM files WHERE path = ?1",
+                params![relative_path],
+                |r| r.get(0),
+            )
+        } else {
+            Err(rusqlite::Error::InvalidQuery)
+        }
+    }
+
     pub fn store_file(&self, relative_path: &String, name: &String) -> Result<(), String> {
         if let Some(ref con) = self.connection {
             match con.execute(
@@ -240,10 +262,40 @@ impl Database {
                 Ok(updated) => info!("{} file(s) inserted", updated),
                 Err(err) => return Err(format!("Failed to insert file: {err}").to_string()),
             }
-        } else {
-            return Ok(());
         };
 
+        Ok(())
+    }
+
+    pub fn associate_tag_with_file(
+        &self,
+        relative_path: &String,
+        tag: &String,
+    ) -> Result<(), String> {
+        let file_id = match self.get_file_id(relative_path) {
+            Ok(id) => id,
+            Err(err) => {
+                warn!("Failed to get file id: {err}");
+                return Err(format!("Failed to associate file with tag: {err}").to_string());
+            }
+        };
+        let tag_id = match self.get_tag_id(tag) {
+            Ok(id) => id,
+            Err(err) => {
+                warn!("Failed to get tag id: {err}");
+                return Err(format!("Failed to find tag in database: {err}").to_string());
+            }
+        };
+
+        if let Some(ref con) = self.connection {
+            match con.execute(
+                "INSERT INTO fileTags(file_id, tag_id) Values(?1, ?2)",
+                params![file_id, tag_id],
+            ) {
+                Ok(updated) => debug!("{} fileTag(s) inserted", updated),
+                Err(err) => return Err(format!("Failed to insert fileTag: {err}").to_string()),
+            }
+        }
         Ok(())
     }
 

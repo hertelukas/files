@@ -7,9 +7,9 @@ use config::Config;
 use db::Database;
 use log::{debug, info};
 use rand::{distributions::Alphanumeric, Rng};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Mutex;
-use std::collections::HashMap;
 use tauri::{Manager, State};
 
 #[tauri::command]
@@ -106,6 +106,11 @@ fn import(
     assert!(db.is_initialized());
 
     db.store_file(&folder, &filename)?;
+
+    // Handle tags
+    for tag in tags {
+        db.associate_tag_with_file(&folder, &tag)?;
+    }
     Ok(())
 }
 
