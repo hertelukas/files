@@ -231,13 +231,30 @@ impl Database {
         Ok(())
     }
 
+    pub fn store_file(&self, relative_path: &String, name: &String) -> Result<(), String> {
+        if let Some(ref con) = self.connection {
+            match con.execute(
+                "INSERT INTO files(path, name) VALUES (?1, ?2)",
+                params![relative_path, name],
+            ) {
+                Ok(updated) => info!("{} file(s) inserted", updated),
+                Err(err) => return Err(format!("Failed to insert file: {err}").to_string()),
+            }
+        } else {
+            return Ok(());
+        };
+
+        Ok(())
+    }
+
     fn create_tables(&self) -> Result<()> {
         let qry = "
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS files (
   id INTEGER PRIMARY KEY,
-  path TEXT NOT NULL
+  path TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS tags (
@@ -286,7 +303,9 @@ mod tests {
 
     fn create_db() -> Database {
         let con = Connection::open_in_memory().expect("Database in memory failed");
-        let db = Database { connection: Some(con) };
+        let db = Database {
+            connection: Some(con),
+        };
         db.create_tables().expect("Database creation failed");
         db
     }

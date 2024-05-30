@@ -5,9 +5,11 @@ mod config;
 mod db;
 use config::Config;
 use db::Database;
-use log::info;
-use std::collections::HashMap;
+use log::{debug, info};
+use rand::{distributions::Alphanumeric, Rng};
+use std::path::Path;
 use std::sync::Mutex;
+use std::collections::HashMap;
 use tauri::{Manager, State};
 
 #[tauri::command]
@@ -65,10 +67,45 @@ fn import(
     path: String,
     tags: Vec<String>,
     categories: HashMap<String, String>,
+    config_state: State<Mutex<Option<Config>>>,
+    db_state: State<Mutex<Database>>,
 ) -> Result<(), String> {
-    println!("Path: {:?}", path);
-    println!("Tags: {:?}", tags);
-    println!("Categories: {:?}", categories);
+    info!("Stroing file {:?}", path);
+    debug!("Tags: {:?}", tags);
+    debug!("Categories: {:?}", categories);
+
+    let target_path = config_state.lock().unwrap().as_ref().unwrap().folder();
+    let path = Path::new(&path);
+    let filename = path.file_name().unwrap().to_str().unwrap().to_string();
+
+    let folder: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(7)
+        .map(char::from)
+        .collect();
+
+    let target_path = target_path.join(folder.clone());
+
+    info!("New file location: {:?}", target_path);
+
+    // Create target folder
+    std::fs::create_dir(&target_path).unwrap();
+
+    let target_path = target_path.join(filename.clone());
+
+    // Copying the file
+    match std::fs::copy(&path, &target_path) {
+        Ok(bytes) => debug!("Copied {bytes} to the new folder {:?}", target_path),
+        Err(error) => return Err("Importing file failed: ".to_string() + &error.to_string()),
+    }
+
+    let db = match db_state.lock() {
+        Ok(content) => content,
+        Err(_) => return Err("Locking the db mutex failed".to_string()),
+    };
+    assert!(db.is_initialized());
+
+    db.store_file(&folder, &filename)?;
     Ok(())
 }
 

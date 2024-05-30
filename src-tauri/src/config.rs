@@ -53,4 +53,8 @@ impl Config {
     pub fn db_path(&self) -> PathBuf {
         PathBuf::from(&self.folder).join("files.sqlite")
     }
+
+    pub fn folder(&self) -> PathBuf {
+        PathBuf::from(&self.folder)
+    }
 }
