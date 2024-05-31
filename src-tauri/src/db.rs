@@ -146,10 +146,23 @@ impl Database {
         }
     }
 
+    fn get_value_id(&self, category_id: u32, value: &String) -> Result<String> {
+        debug!("{category_id}:{value}");
+        if let Some(ref con) = self.connection {
+            con.query_row(
+                "SELECT id FROM categoryValue WHERE value = ?1 AND category_id = ?2",
+                params![value, category_id],
+                |r| r.get(0),
+            )
+        } else {
+            Err(rusqlite::Error::InvalidQuery)
+        }
+    }
+
     fn delete_value(&self, category_id: u32, value: &String) -> Result<usize> {
         if let Some(ref con) = self.connection {
             con.execute(
-                "DELETE FROM categoryValue WHERE value = ?1 and category_id = ?2",
+                "DELETE FROM categoryValue WHERE value = ?1 AND category_id = ?2",
                 params![value, category_id],
             )
         } else {
@@ -296,6 +309,50 @@ impl Database {
                 Err(err) => return Err(format!("Failed to insert fileTag: {err}").to_string()),
             }
         }
+        Ok(())
+    }
+
+    pub fn associate_value_with_file(
+        &self,
+        relative_path: &String,
+        category: &String,
+        value: &String,
+    ) -> Result<(), String> {
+        debug!("Inserting {category}:{value} for {relative_path}");
+        let file_id = match self.get_file_id(relative_path) {
+            Ok(id) => id,
+            Err(err) => {
+                warn!("Failed to get file id: {err}");
+                return Err(format!("Failed to associate file with value: {err}").to_string());
+            }
+        };
+
+        let category_id = match self.get_category_id(category) {
+            Ok(id) => id,
+            Err(err) => {
+                warn!("Failed to get category id: {err}");
+                return Err(format!("Failed to find category in database: {err}").to_string());
+            }
+        };
+
+        let value_id = match self.get_value_id(category_id, value) {
+            Ok(id) => id,
+            Err(err) => {
+                warn!("Failed to get value id: {err}");
+                return Err(format!("Failed to find value in database: {err}").to_string());
+            }
+        };
+
+        if let Some(ref con) = self.connection {
+            match con.execute(
+                "INSERT INTO fileValues(file_id, value_id) Values(?1, ?2)",
+                params![file_id, value_id],
+            ) {
+                Ok(updated) => debug!("{} fileValue(s) inserted", updated),
+                Err(err) => return Err(format!("Faield to insert fileValue: {err}").to_string()),
+            }
+        }
+
         Ok(())
     }
 

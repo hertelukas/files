@@ -111,6 +111,10 @@ fn import(
     for tag in tags {
         db.associate_tag_with_file(&folder, &tag)?;
     }
+
+    for (category, value) in categories {
+        db.associate_value_with_file(&folder, &category, &value)?;
+    }
     Ok(())
 }
 
